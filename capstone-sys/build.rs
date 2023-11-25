@@ -46,7 +46,7 @@ extern crate regex;
 #[cfg(feature = "use_bindgen")]
 use {
     regex::Regex,
-    std::{fs::File, io::Write},
+    std::{fs::File, io::Write, process::Command},
 };
 
 use std::env;
@@ -132,6 +132,7 @@ fn build_capstone_cc() {
         .define("CAPSTONE_HAS_WASM", None)
         .define("CAPSTONE_HAS_X86", None)
         .define("CAPSTONE_HAS_XCORE", None)
+        .define("CAPSTONE_HAS_TRICORE", None)
         // No need to display any warnings from the C library
         .flag_if_supported("-w")
         .static_crt(use_static_crt);
@@ -171,18 +172,19 @@ fn impl_insid_to_insenum(bindings: &str) -> String {
 
     for cs_arch in ARCH_INCLUDES {
         let arch = cs_arch.cs_name();
+        let real_cs_name = cs_arch.real_cs_name();
 
         // find architecture instructions enum declaration
         let re_enum_def = Regex::new(&format!("pub enum {}_insn (?s)\\{{.*?\\}}", arch))
             .expect("Unable to compile regex");
         let cap_enum_def = &re_enum_def
             .captures(bindings)
-            .expect("Unable to capture group")[0];
+            .expect(format!("Unable to capture group: {}", arch).as_str())[0];
 
         // find instructions and their id
         let re_ins_ids = Regex::new(&format!(
             "{}_INS_(?P<ins>[A-Z0-9_]+) = (?P<id>\\d+)",
-            &arch.to_uppercase()
+            real_cs_name.as_str()
         ))
         .expect("Unable to compile regex");
 
@@ -202,7 +204,7 @@ fn impl_insid_to_insenum(bindings: &str) -> String {
                 "{} => {}_insn::{}_INS_{},",
                 &cap_ins_id["id"],
                 &arch,
-                &arch.to_uppercase(),
+                real_cs_name.as_str(),
                 &cap_ins_id["ins"]
             )
             .unwrap();
@@ -218,7 +220,7 @@ fn impl_insid_to_insenum(bindings: &str) -> String {
             impl_arch_enum,
             "_ => {}_insn::{}_INS_{},",
             &arch,
-            &arch.to_uppercase(),
+            real_cs_name.as_str(),
             invalid_str,
         )
         .unwrap();
@@ -240,7 +242,7 @@ fn write_bindgen_bindings(
     out_impl_path: PathBuf,
 ) {
     let mut builder = bindgen::Builder::default()
-        .rust_target(bindgen::RustTarget::Stable_1_19)
+        .rust_target(bindgen::RustTarget::Nightly)
         .size_t_is_usize(true)
         .use_core()
         .ctypes_prefix("libc")
@@ -303,6 +305,18 @@ fn main() {
 
     // C header search paths
     let mut header_search_paths: Vec<PathBuf> = Vec::new();
+
+    #[cfg(feature = "use_bindgen")]
+    {
+        Command::new("git")
+            .args([
+                "clone",
+                "https://github.com/capstone-engine/capstone.git",
+                "capstone",
+            ])
+            .output()
+            .expect("failed to clone capstone");
+    }
 
     build_capstone_cc();
 

@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "capstone-rs",
+#    "capstone-rs",
     "capstone-sys",
-    "cstool",
+#    "cstool",
 ]
