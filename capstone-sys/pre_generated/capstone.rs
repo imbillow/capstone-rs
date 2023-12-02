@@ -19403,7 +19403,7 @@ pub struct tricore_op_mem {
     #[doc = "< base register"]
     pub base: u8,
     #[doc = "< displacement/offset value"]
-    pub disp: i32,
+    pub disp: i64,
 }
 #[doc = " Instruction operand"]
 #[repr(C)]
@@ -19421,7 +19421,7 @@ pub union cs_tricore_op__bindgen_ty_1 {
     #[doc = "< register value for REG operand"]
     pub reg: libc::c_uint,
     #[doc = "< immediate value for IMM operand"]
-    pub imm: i32,
+    pub imm: i64,
     #[doc = "< base/disp value for MEM operand"]
     pub mem: tricore_op_mem,
 }

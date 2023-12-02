@@ -1,3 +1,4 @@
+#![feature(fs_try_exists)]
 //! The following environment variables affect the build:
 //!
 //! * `UPDATE_CAPSTONE_BINDINGS`: setting indicates that the pre-generated `capstone.rs` should be
@@ -46,12 +47,14 @@ extern crate regex;
 #[cfg(feature = "use_bindgen")]
 use {
     regex::Regex,
-    std::{fs::File, io::Write, process::Command},
+    std::{fs::File, io::Write},
 };
 
+use std::convert::identity;
 use std::env;
 use std::fs::copy;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 include!("common.rs");
 
@@ -306,13 +309,12 @@ fn main() {
     // C header search paths
     let mut header_search_paths: Vec<PathBuf> = Vec::new();
 
-    #[cfg(feature = "use_bindgen")]
-    {
+    if !Path::new(CAPSTONE_DIR).try_exists().is_ok_and(identity) {
         Command::new("git")
             .args([
                 "clone",
                 "https://github.com/capstone-engine/capstone.git",
-                "capstone",
+                CAPSTONE_DIR,
             ])
             .output()
             .expect("failed to clone capstone");
@@ -331,6 +333,8 @@ fn main() {
             println!("cargo:rustc-link-lib=static=capstone");
         }
     }
+
+    println!("cargo:rerun-if-changed={}", CAPSTONE_DIR);
 
     // If UPDATE_CAPSTONE_BINDINGS is set, then updated the pre-generated capstone bindings
     let update_pregenerated_bindings = env::var("UPDATE_CAPSTONE_BINDINGS").is_ok();
